@@ -1,0 +1,105 @@
+{% extends 'store/base.html' %}
+
+{% block title %}{{ vehicle.marca }} {{ vehicle.modelo }} | MiniMachines{% endblock %}
+
+{% block content %}
+    <section class="form-card mb-4">
+        <div class="row g-4 align-items-center">
+            <div class="col-lg-5">
+                <div class="thumb" style="height: 260px; font-size: 4rem;">🚗</div>
+            </div>
+            <div class="col-lg-7">
+                <span class="badge text-bg-warning badge-pill mb-2">Vehículo</span>
+                <h1 class="section-title mb-3">{{ vehicle.marca }} {{ vehicle.modelo }}</h1>
+                <p class="text-muted mb-3">Vehículo a escala con opción de personalización y compra directa.</p>
+                <div class="product-price mb-3">${{ vehicle.valor_base|floatformat:0 }}</div>
+
+                <ul class="list-unstyled text-muted mb-0">
+                    <li><strong>Pintura actual:</strong> {{ vehicle.pintura.color }}</li>
+                    <li><strong>Rueda actual:</strong> {{ vehicle.rueda.descripcion|default:'Sin configuración' }}</li>
+                    <li><strong>Silla actual:</strong> {{ vehicle.silla.descripcion }}</li>
+                    <li><strong>Luces actuales:</strong> {{ vehicle.luces.color }}</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <section class="row g-4">
+        <div class="col-lg-7">
+            <div class="form-card h-100">
+                <h2 class="section-title mb-3">Personalizar accesorios</h2>
+                <form method="post" action="{% url 'comprar_vehiculo' vehicle.id %}">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="pintura">Pintura</label>
+                            <select class="form-select" id="pintura" name="pintura">
+                                {% for item in paint_options %}
+                                    <option value="{{ item.id }}" {% if selected_paint and selected_paint.id == item.id %}selected{% endif %}>{{ item.color }} (${{ item.valor|floatformat:0 }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="rueda">Rueda</label>
+                            <select class="form-select" id="rueda" name="rueda">
+                                {% for item in wheel_options %}
+                                    <option value="{{ item.id }}" {% if selected_wheel and selected_wheel.id == item.id %}selected{% endif %}>{{ item.descripcion }} (${{ item.valor|floatformat:0 }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="silla">Silla</label>
+                            <select class="form-select" id="silla" name="silla">
+                                {% for item in seat_options %}
+                                    <option value="{{ item.id }}" {% if selected_seat and selected_seat.id == item.id %}selected{% endif %}>{{ item.descripcion }} (${{ item.valor|floatformat:0 }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="luces">Luces</label>
+                            <select class="form-select" id="luces" name="luces">
+                                {% for item in light_options %}
+                                    <option value="{{ item.id }}" {% if selected_light and selected_light.id == item.id %}selected{% endif %}>{{ item.color }} (${{ item.valor|floatformat:0 }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 p-3 rounded-4 bg-light border">
+                        <div class="small text-uppercase text-muted mb-1">Total estimado</div>
+                        <div class="product-price">${{ estimated_total|floatformat:0 }}</div>
+                    </div>
+
+                    {% if user.is_authenticated %}
+                        <button type="submit" class="btn btn-primary mt-4">Confirmar compra</button>
+                    {% else %}
+                        <a class="btn btn-primary mt-4" href="{% url 'login' %}">Inicia sesión para comprar</a>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="form-card h-100">
+                <h2 class="section-title mb-3">Especificaciones</h2>
+                <div class="mb-3">
+                    <div class="small text-uppercase text-muted">Pintura</div>
+                    <div class="fw-bold">{{ vehicle.pintura.descripcion }}</div>
+                </div>
+                <div class="mb-3">
+                    <div class="small text-uppercase text-muted">Ruedas</div>
+                    <div class="fw-bold">{{ vehicle.rueda.descripcion|default:'Sin rueda configurada' }}</div>
+                </div>
+                <div class="mb-3">
+                    <div class="small text-uppercase text-muted">Silla</div>
+                    <div class="fw-bold">{{ vehicle.silla.descripcion }}</div>
+                </div>
+                <div class="mb-3">
+                    <div class="small text-uppercase text-muted">Luces</div>
+                    <div class="fw-bold">{{ vehicle.luces.descripcion }}</div>
+                </div>
+                <a class="btn btn-outline-primary mt-3" href="{% url 'vehiculos' %}">Volver al catálogo</a>
+            </div>
+        </div>
+    </section>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends 'store/base.html' %}
+
+{% block title %}Mis compras | MiniMachines Store{% endblock %}
+
+{% block content %}
+    <section class="form-card">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+            <div>
+                <span class="badge text-bg-warning badge-pill mb-2">Cliente</span>
+                <h1 class="section-title mb-0">Mis compras</h1>
+            </div>
+            <a class="btn btn-primary" href="{% url 'vehiculos' %}">Seguir comprando</a>
+        </div>
+
+        {% if pedidos %}
+            <div class="d-flex flex-column gap-3">
+                {% for pedido in pedidos %}
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body p-4">
+                            <div class="row align-items-center">
+                                <div class="col-md-8">
+                                    <div class="text-uppercase text-muted small mb-2">Pedido #{{ pedido.id }}</div>
+                                    {% if pedido.vehiculo %}
+                                        <h2 class="h4 fw-bold mb-2">{{ pedido.vehiculo.marca }} {{ pedido.vehiculo.modelo }}</h2>
+                                        <p class="text-muted mb-2">
+                                            Pintura: {{ pedido.pintura.color|default:pedido.vehiculo.pintura.color }} ·
+                                            Rueda: {{ pedido.rueda.descripcion|default:pedido.vehiculo.rueda.descripcion|default:'Sin rueda' }} ·
+                                            Silla: {{ pedido.silla.descripcion|default:pedido.vehiculo.silla.descripcion }} ·
+                                            Luces: {{ pedido.luces.color|default:pedido.vehiculo.luces.color }}
+                                        </p>
+                                    {% else %}
+                                        <h2 class="h4 fw-bold mb-2">Compra de accesorio</h2>
+                                        <p class="text-muted mb-2">
+                                            {% if pedido.pintura %}Pintura: {{ pedido.pintura.color }}{% endif %}
+                                            {% if pedido.rueda %}Rueda: {{ pedido.rueda.descripcion }}{% endif %}
+                                            {% if pedido.silla %}Silla: {{ pedido.silla.descripcion }}{% endif %}
+                                            {% if pedido.luces %}Luces: {{ pedido.luces.color }}{% endif %}
+                                        </p>
+                                    {% endif %}
+                                    <small class="text-muted">Fecha: {{ pedido.fecha|date:'d/m/Y H:i' }}</small>
+                                </div>
+                                <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                                    <div class="text-muted small">Total</div>
+                                    <div class="product-price">${{ pedido.total|floatformat:0 }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <h2 class="h4 fw-bold mb-3">Todavía no tienes compras</h2>
+                <p class="text-muted mb-4">Cuando compres un vehículo, aparecerá aquí tu historial.</p>
+                <a class="btn btn-primary" href="{% url 'vehiculos' %}">Explorar catálogo</a>
+            </div>
+        {% endif %}
+    </section>
+{% endblock %}

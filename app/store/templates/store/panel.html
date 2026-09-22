@@ -1,0 +1,119 @@
+{% extends 'store/base.html' %}
+
+{% block title %}Panel | MiniMachines Store{% endblock %}
+
+{% block content %}
+    <section class="mb-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+            <div>
+                <span class="badge text-bg-warning badge-pill mb-2">{{ role|upper }}</span>
+                <h1 class="section-title mb-0">Panel de administración</h1>
+            </div>
+            <a class="btn btn-primary" href="{% url 'admin:index' %}">Ir al panel Django</a>
+        </div>
+
+        <div class="row g-4 mb-4">
+            <div class="col-md-6 col-xl-3">
+                <div class="feature-card h-100">
+                    <div class="feature-icon">🧾</div>
+                    <h3 class="h5 fw-bold">Pedidos</h3>
+                    <p class="text-muted mb-0">{{ total_pedidos }} registros activos en el sistema.</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="feature-card h-100">
+                    <div class="feature-icon">👥</div>
+                    <h3 class="h5 fw-bold">Clientes</h3>
+                    <p class="text-muted mb-0">{{ clientes|length }} perfiles registrados.</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="feature-card h-100">
+                    <div class="feature-icon">💰</div>
+                    <h3 class="h5 fw-bold">Ventas</h3>
+                    <p class="text-muted mb-0">${{ total_ventas|floatformat:0 }}</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="feature-card h-100">
+                    <div class="feature-icon">⚙️</div>
+                    <h3 class="h5 fw-bold">Inventario</h3>
+                    <p class="text-muted mb-0">Vehículos, pinturas, sillas y luces sincronizados.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+                    <div>
+                        <h2 class="h4 fw-bold mb-1">Pedidos recientes</h2>
+                        <p class="text-muted mb-0">Control de compras por cliente.</p>
+                    </div>
+                    <form method="get" class="d-flex align-items-center gap-2">
+                        <label for="cliente" class="form-label mb-0 fw-semibold">Cliente</label>
+                        <select id="cliente" name="cliente" class="form-select" onchange="this.form.submit()">
+                            <option value="">Todos</option>
+                            {% if selected_client %}
+                                <option value="{{ selected_client.id }}" selected>{{ selected_client.nombre }} {{ selected_client.apellido }}</option>
+                            {% else %}
+                                {% for cliente in clientes %}
+                                    <option value="{{ cliente.id }}" {% if selected_client_id == cliente.id|slugify %}selected{% endif %}>{{ cliente.nombre }} {{ cliente.apellido }}</option>
+                                {% endfor %}
+                            {% endif %}
+                        </select>
+                    </form>
+                </div>
+
+                {% if pedidos %}
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th>Producto</th>
+                                    <th>Detalle</th>
+                                    <th>Fecha</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for pedido in pedidos %}
+                                    <tr>
+                                        <td>
+                                            <div class="fw-semibold">{{ pedido.cliente.nombre }} {{ pedido.cliente.apellido }}</div>
+                                            <small class="text-muted">{{ pedido.cliente.correo }}</small>
+                                        </td>
+                                        <td>
+                                            {% if pedido.vehiculo %}
+                                                {{ pedido.vehiculo.marca }} {{ pedido.vehiculo.modelo }}
+                                            {% else %}
+                                                Accesorio
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if pedido.vehiculo %}
+                                                {{ pedido.pintura.color }} / {{ pedido.rueda.descripcion|default:'Sin rueda' }} / {{ pedido.silla.descripcion }} / {{ pedido.luces.color }}
+                                            {% else %}
+                                                {% if pedido.pintura %}Pintura: {{ pedido.pintura.color }}{% endif %}
+                                                {% if pedido.rueda %}Rueda: {{ pedido.rueda.descripcion }}{% endif %}
+                                                {% if pedido.silla %}Silla: {{ pedido.silla.descripcion }}{% endif %}
+                                                {% if pedido.luces %}Luz: {{ pedido.luces.color }}{% endif %}
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ pedido.fecha|date:'d/m/Y H:i' }}</td>
+                                        <td class="text-end fw-bold">${{ pedido.total|floatformat:0 }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-light border-0 mb-0 text-muted">
+                        No hay pedidos para este cliente en este momento.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+{% endblock %}
