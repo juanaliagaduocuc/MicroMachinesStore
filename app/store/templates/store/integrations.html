@@ -1,0 +1,55 @@
+{% extends 'store/base.html' %}
+
+{% block title %}Integraciones | MiniMachines Store{% endblock %}
+
+{% block content %}
+    <section class="hero-card mb-4">
+        <div class="hero-content">
+            <span class="badge text-bg-warning badge-pill mb-3">Servicios externos</span>
+            <h1 class="hero-title">Integraciones</h1>
+            <p class="hero-text mb-0">Información automotriz y tipo de cambio consultados desde servicios públicos.</p>
+        </div>
+    </section>
+
+    <div class="row g-4 mb-5">
+        <section class="col-md-6" aria-labelledby="makes-title">
+            <div class="feature-card h-100">
+                <h2 class="h4 fw-bold" id="makes-title">Marcas de automóviles</h2>
+                <p class="text-muted">Fabricantes consultados en la API de vehículos de NHTSA.</p>
+                {% if vehicle_makes %}
+                    <ul class="mb-0">
+                        {% for make in vehicle_makes %}
+                            <li>{{ make.MakeName }} <span class="text-muted">(#{{ make.MakeId }})</span></li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="mb-0" role="status">No se pudo obtener la lista de marcas en este momento.</p>
+                {% endif %}
+                <a class="d-inline-block mt-3" href="https://vpic.nhtsa.dot.gov/" target="_blank" rel="noopener noreferrer">Fuente: NHTSA vPIC</a>
+            </div>
+        </section>
+
+        <section class="col-md-6" aria-labelledby="exchange-title">
+            <div class="feature-card h-100">
+                <h2 class="h4 fw-bold" id="exchange-title">Tipo de cambio</h2>
+                <p class="text-muted">Conversión de referencia para los precios de la tienda.</p>
+                {% if clp_rate %}
+                    <p class="display-6 fw-bold mb-1">1 USD = {{ clp_rate|floatformat:2 }} CLP</p>
+                    {% if exchange_updated %}<p class="small text-muted">Actualizado: {{ exchange_updated }}</p>{% endif %}
+                {% else %}
+                    <p class="mb-0" role="status">No se pudo obtener el tipo de cambio en este momento.</p>
+                {% endif %}
+                <a class="d-inline-block mt-3" href="https://www.exchangerate-api.com/" target="_blank" rel="noopener noreferrer">Fuente: ExchangeRate-API</a>
+            </div>
+        </section>
+    </div>
+
+    <section class="mb-5" aria-labelledby="api-title">
+        <h2 class="section-title" id="api-title">API de MiniMachines</h2>
+        <p>Catálogos públicos en JSON para integrar con otras aplicaciones:</p>
+        <ul>
+            <li><a href="{% url 'api_vehiculos' %}">Vehículos</a> · <code>/api/vehiculos/</code></li>
+            <li><a href="{% url 'api_accesorios' %}">Accesorios</a> · <code>/api/accesorios/</code></li>
+        </ul>
+    </section>
+{% endblock %}

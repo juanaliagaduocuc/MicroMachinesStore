@@ -1,8 +1,13 @@
+import json
+from urllib.request import urlopen
+
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render, redirect
+from django.views.decorators.http import require_GET
 
 from .forms import LoginForm, RegisterForm
 from .models import Luces, Pedido, Pintura, Rueda, Silla, UsuarioCliente, UsuarioEmpleado, Vehiculo
@@ -62,6 +67,67 @@ def vehicles(request):
         ],
     }
     return render(request, 'store/vehicles.html', context)
+
+
+@require_GET
+def api_vehicles(request):
+    vehicles_list = Vehiculo.objects.filter(activo=True).select_related('pintura', 'rueda', 'silla', 'luces')
+    results = [{
+        'id': item.id,
+        'marca': item.marca,
+        'modelo': item.modelo,
+        'precio_base': str(item.valor_base),
+        'pintura': item.pintura.color,
+        'rueda': item.rueda.descripcion if item.rueda else None,
+        'silla': item.silla.descripcion,
+        'luces': item.luces.color,
+    } for item in vehicles_list]
+    response = JsonResponse({'count': len(results), 'results': results})
+    response['Access-Control-Allow-Origin'] = '*'
+    return response
+
+
+@require_GET
+def api_accessories(request):
+    results = []
+    for model, kind, name_field, description_field in [
+        (Pintura, 'pintura', 'color', 'descripcion'),
+        (Rueda, 'rueda', 'descripcion', 'descripcion'),
+        (Silla, 'silla', 'descripcion', 'descripcion'),
+        (Luces, 'luces', 'color', 'descripcion'),
+    ]:
+        results.extend({
+            'id': item.id,
+            'tipo': kind,
+            'nombre': getattr(item, name_field),
+            'descripcion': getattr(item, description_field),
+            'precio': str(item.valor),
+        } for item in model.objects.filter(activo=True))
+    response = JsonResponse({'count': len(results), 'results': results})
+    response['Access-Control-Allow-Origin'] = '*'
+    return response
+
+
+def fetch_public_json(url):
+    try:
+        with urlopen(url, timeout=5) as response:
+            return json.loads(response.read())
+    except (OSError, ValueError):
+        return None
+
+
+def integrations(request):
+    makes_data = fetch_public_json(
+        'https://vpic.nhtsa.dot.gov/api/vehicles/GetMakesForVehicleType/car?format=json'
+    )
+    exchange_data = fetch_public_json('https://open.er-api.com/v6/latest/USD')
+    makes = makes_data.get('Results', []) if isinstance(makes_data, dict) else []
+    rates = exchange_data.get('rates', {}) if isinstance(exchange_data, dict) else {}
+    return render(request, 'store/integrations.html', {
+        'vehicle_makes': makes[:8] if isinstance(makes, list) else [],
+        'clp_rate': rates.get('CLP') if isinstance(rates, dict) else None,
+        'exchange_updated': exchange_data.get('time_last_update_utc') if isinstance(exchange_data, dict) else None,
+    })
 
 
 def accessories(request):

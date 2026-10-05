@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from unittest.mock import patch
 
 from .models import (
     Luces,
@@ -105,3 +106,49 @@ class EmployeePanelTests(TestCase):
         self.assertEqual(filtered.status_code, 200)
         self.assertContains(filtered, 'Cristian')
         self.assertNotContains(filtered, 'Paula')
+
+
+class StoreApiTests(TestCase):
+    def setUp(self):
+        self.paint = Pintura.objects.create(color='Rojo', descripcion='Pintura roja', valor=15000)
+        self.wheel = Rueda.objects.create(descripcion='Rueda deportiva', valor=8000)
+        self.seat = Silla.objects.create(descripcion='Silla clásica', valor=12000)
+        self.light = Luces.objects.create(color='Blanco', descripcion='Luces LED', valor=11000)
+        self.vehicle = Vehiculo.objects.create(
+            modelo='F40', marca='Ferrari', valor_base=240000, pintura=self.paint,
+            rueda=self.wheel, silla=self.seat, luces=self.light,
+        )
+
+    def test_vehicle_api_returns_public_active_catalog_with_cors(self):
+        response = self.client.get(reverse('api_vehiculos'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Access-Control-Allow-Origin'], '*')
+        self.assertEqual(response.json()['results'][0]['marca'], 'Ferrari')
+        self.assertEqual(response.json()['results'][0]['precio_base'], '240000')
+
+    def test_accessory_api_returns_active_catalog(self):
+        inactive = Pintura.objects.create(color='Verde', descripcion='No disponible', valor=5000, activo=False)
+
+        response = self.client.get(reverse('api_accesorios'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['count'], 4)
+        self.assertNotIn(inactive.color, [item['nombre'] for item in response.json()['results']])
+
+    @patch('store.views.fetch_public_json')
+    def test_integrations_page_shows_external_data_and_handles_failure(self, fetch_json):
+        fetch_json.side_effect = [
+            {'Results': [{'MakeName': 'Toyota', 'MakeId': 1}]},
+            {'rates': {'CLP': 950.0}, 'time_last_update_utc': '2026-10-05'},
+        ]
+        response = self.client.get(reverse('integraciones'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Toyota')
+        self.assertContains(response, '950.00 CLP')
+
+        fetch_json.side_effect = [None, None]
+        unavailable = self.client.get(reverse('integraciones'))
+        self.assertEqual(unavailable.status_code, 200)
+        self.assertContains(unavailable, 'No se pudo obtener el tipo de cambio')
