@@ -7,7 +7,7 @@
         <div class="hero-content">
             <span class="badge text-bg-warning badge-pill mb-3">Servicios externos</span>
             <h1 class="hero-title">Integraciones</h1>
-            <p class="hero-text mb-0">Información automotriz y tipo de cambio consultados desde servicios públicos.</p>
+            <p class="hero-text mb-0">Información automotriz y un poco de diversión, consultados desde servicios públicos.</p>
         </div>
     </section>
 
@@ -29,20 +29,41 @@
             </div>
         </section>
 
-        <section class="col-md-6" aria-labelledby="exchange-title">
+        <section class="col-md-6" aria-labelledby="plate-title">
             <div class="feature-card h-100">
-                <h2 class="h4 fw-bold" id="exchange-title">Tipo de cambio</h2>
-                <p class="text-muted">Conversión de referencia para los precios de la tienda.</p>
-                {% if clp_rate %}
-                    <p class="display-6 fw-bold mb-1">1 USD = {{ clp_rate|floatformat:2 }} CLP</p>
-                    {% if exchange_updated %}<p class="small text-muted">Actualizado: {{ exchange_updated }}</p>{% endif %}
-                {% else %}
-                    <p class="mb-0" role="status">No se pudo obtener el tipo de cambio en este momento.</p>
-                {% endif %}
-                <a class="d-inline-block mt-3" href="https://www.exchangerate-api.com/" target="_blank" rel="noopener noreferrer">Fuente: ExchangeRate-API</a>
+                <h2 class="h4 fw-bold" id="plate-title">Patente con nombre aleatorio 🚘</h2>
+                <p class="text-muted">Pulsa para inventar una patente personalizada con dos sustantivos aleatorios.</p>
+                <div class="mx-auto my-4 d-flex align-items-center justify-content-center gap-2 border border-3 border-dark rounded bg-light px-3 py-2 shadow-sm" style="max-width: 360px; min-height: 88px;">
+                    <span class="badge text-bg-primary">CL</span>
+                    <output class="fw-bold text-uppercase text-nowrap" id="plate-name" aria-live="polite" style="font-size: clamp(1.4rem, 5vw, 2.6rem); letter-spacing: .06em;">???</output>
+                </div>
+                <button class="btn btn-primary" id="generate-plate" type="button" data-api-url="{% url 'api_nombre_patente' %}">Generar patente</button>
+                <p class="small text-muted mt-3 mb-0" id="plate-status" role="status" aria-live="polite"></p>
+                <a class="d-inline-block mt-3" href="https://www.datamuse.com/api/" target="_blank" rel="noopener noreferrer">Fuente: Datamuse API</a>
             </div>
         </section>
     </div>
+
+    <script>
+        document.getElementById('generate-plate').addEventListener('click', async event => {
+            const button = event.currentTarget;
+            const output = document.getElementById('plate-name');
+            const status = document.getElementById('plate-status');
+            button.disabled = true;
+            status.textContent = 'Buscando nombre…';
+            try {
+                const response = await fetch(button.dataset.apiUrl, {headers: {'Accept': 'application/json'}});
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'No se pudo generar un nombre.');
+                output.textContent = data.name;
+                status.textContent = '';
+            } catch (error) {
+                status.textContent = error.message || 'No se pudo conectar con la API.';
+            } finally {
+                button.disabled = false;
+            }
+        });
+    </script>
 
     <section class="mb-5" aria-labelledby="api-title">
         <h2 class="section-title" id="api-title">API de MiniMachines</h2>
@@ -50,6 +71,8 @@
         <ul>
             <li><a href="{% url 'api_vehiculos' %}">Vehículos</a> · <code>/api/vehiculos/</code></li>
             <li><a href="{% url 'api_accesorios' %}">Accesorios</a> · <code>/api/accesorios/</code></li>
+            <li><a href="{% url 'api_ventas' %}">Ventas (GET/POST; requiere sesión de empleado)</a> · <code>/api/ventas/</code></li>
+            <li><a href="{% url 'api_nombre_patente' %}">Patente aleatoria de sustantivos</a> · <code>/api/nombre-patente/</code></li>
         </ul>
     </section>
 {% endblock %}

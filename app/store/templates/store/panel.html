@@ -17,7 +17,7 @@
                 <div class="feature-card h-100">
                     <div class="feature-icon">🧾</div>
                     <h3 class="h5 fw-bold">Pedidos</h3>
-                    <p class="text-muted mb-0">{{ total_pedidos }} registros activos en el sistema.</p>
+                    <p class="text-muted mb-0" id="sales-count">{{ total_pedidos }} registros en el sistema.</p>
                 </div>
             </div>
             <div class="col-md-6 col-xl-3">
@@ -31,7 +31,7 @@
                 <div class="feature-card h-100">
                     <div class="feature-icon">💰</div>
                     <h3 class="h5 fw-bold">Ventas</h3>
-                    <p class="text-muted mb-0">${{ total_ventas|floatformat:0 }}</p>
+                    <p class="text-muted mb-0" id="sales-total">${{ total_ventas|floatformat:0 }}</p>
                 </div>
             </div>
             <div class="col-md-6 col-xl-3">
@@ -47,73 +47,298 @@
             <div class="card-body p-4">
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
                     <div>
-                        <h2 class="h4 fw-bold mb-1">Pedidos recientes</h2>
-                        <p class="text-muted mb-0">Control de compras por cliente.</p>
+                        <h2 class="h4 fw-bold mb-1">Ventas</h2>
+                        <p class="text-muted mb-0">Administradas desde la API REST.</p>
                     </div>
-                    <form method="get" class="d-flex align-items-center gap-2">
-                        <label for="cliente" class="form-label mb-0 fw-semibold">Cliente</label>
-                        <select id="cliente" name="cliente" class="form-select" onchange="this.form.submit()">
-                            <option value="">Todos</option>
-                            {% if selected_client %}
-                                <option value="{{ selected_client.id }}" selected>{{ selected_client.nombre }} {{ selected_client.apellido }}</option>
-                            {% else %}
-                                {% for cliente in clientes %}
-                                    <option value="{{ cliente.id }}" {% if selected_client_id == cliente.id|slugify %}selected{% endif %}>{{ cliente.nombre }} {{ cliente.apellido }}</option>
-                                {% endfor %}
-                            {% endif %}
-                        </select>
-                    </form>
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <form method="get" class="d-flex align-items-center gap-2">
+                            <label for="cliente" class="form-label mb-0 fw-semibold">Cliente</label>
+                            <select id="cliente" name="cliente" class="form-select" onchange="this.form.submit()">
+                                <option value="">Todos</option>
+                                {% if selected_client %}
+                                    <option value="{{ selected_client.id }}" selected>{{ selected_client.nombre }} {{ selected_client.apellido }}</option>
+                                {% else %}
+                                    {% for cliente in clientes %}
+                                        <option value="{{ cliente.id }}" {% if selected_client_id == cliente.id|slugify %}selected{% endif %}>{{ cliente.nombre }} {{ cliente.apellido }}</option>
+                                    {% endfor %}
+                                {% endif %}
+                            </select>
+                        </form>
+                        <button class="btn btn-primary" id="create-sale" type="button">Nueva venta</button>
+                    </div>
                 </div>
 
-                {% if pedidos %}
-                    <div class="table-responsive">
-                        <table class="table align-middle">
-                            <thead>
-                                <tr>
-                                    <th>Cliente</th>
-                                    <th>Producto</th>
-                                    <th>Detalle</th>
-                                    <th>Fecha</th>
-                                    <th class="text-end">Total</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for pedido in pedidos %}
-                                    <tr>
-                                        <td>
-                                            <div class="fw-semibold">{{ pedido.cliente.nombre }} {{ pedido.cliente.apellido }}</div>
-                                            <small class="text-muted">{{ pedido.cliente.correo }}</small>
-                                        </td>
-                                        <td>
-                                            {% if pedido.vehiculo %}
-                                                {{ pedido.vehiculo.marca }} {{ pedido.vehiculo.modelo }}
-                                            {% else %}
-                                                Accesorio
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {% if pedido.vehiculo %}
-                                                {{ pedido.pintura.color }} / {{ pedido.rueda.descripcion|default:'Sin rueda' }} / {{ pedido.silla.descripcion }} / {{ pedido.luces.color }}
-                                            {% else %}
-                                                {% if pedido.pintura %}Pintura: {{ pedido.pintura.color }}{% endif %}
-                                                {% if pedido.rueda %}Rueda: {{ pedido.rueda.descripcion }}{% endif %}
-                                                {% if pedido.silla %}Silla: {{ pedido.silla.descripcion }}{% endif %}
-                                                {% if pedido.luces %}Luz: {{ pedido.luces.color }}{% endif %}
-                                            {% endif %}
-                                        </td>
-                                        <td>{{ pedido.fecha|date:'d/m/Y H:i' }}</td>
-                                        <td class="text-end fw-bold">${{ pedido.total|floatformat:0 }}</td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <div class="alert alert-light border-0 mb-0 text-muted">
-                        No hay pedidos para este cliente en este momento.
-                    </div>
-                {% endif %}
+                <p id="sales-status" class="text-muted" role="status" aria-live="polite"></p>
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead>
+                            <tr>
+                                <th>Cliente</th>
+                                <th>Producto</th>
+                                <th>Detalle</th>
+                                <th>Fecha</th>
+                                <th class="text-end">Total</th>
+                                <th><span class="visually-hidden">Acciones</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="sales-list"
+                               data-api-url="{% url 'api_ventas' %}"
+                               data-detail-url="{% url 'api_venta_detalle' 0 %}">
+                        </tbody>
+                    </table>
+                </div>
+                <nav id="sales-pagination" aria-label="Paginación de ventas"></nav>
             </div>
         </div>
     </section>
+
+    <dialog id="sale-dialog" aria-labelledby="sale-dialog-title" style="border:0;border-radius:1rem;max-width:32rem;width:calc(100% - 2rem);padding:1.5rem;box-shadow:0 1rem 3rem #0003">
+        <form id="sale-form">
+            {% csrf_token %}
+            <h2 class="h4 fw-bold mb-3" id="sale-dialog-title">Nueva venta</h2>
+            <label class="form-label" for="sale-client">Cliente</label>
+            <select class="form-select mb-3" id="sale-client" required></select>
+            <label class="form-label" for="sale-product">Producto</label>
+            <select class="form-select mb-2" id="sale-product" required></select>
+            <p class="small text-muted mb-3">Al cambiar el producto de una venta existente, se aplicará la configuración predeterminada del catálogo.</p>
+            <label class="form-label" for="sale-total">Total</label>
+            <input class="form-control mb-4" id="sale-total" type="number" min="0" step="1" required>
+            <p id="sale-form-error" class="text-danger" role="alert"></p>
+            <div class="d-flex justify-content-end gap-2">
+                <button class="btn btn-outline-secondary" id="cancel-sale" type="button">Cancelar</button>
+                <button class="btn btn-primary" type="submit">Guardar</button>
+            </div>
+        </form>
+    </dialog>
+
+    <style>
+        #sale-dialog::backdrop { background: #1e103399; }
+    </style>
+
+    <script>
+        (() => {
+            const list = document.getElementById('sales-list');
+            const apiUrl = list.dataset.apiUrl;
+            const detailUrl = list.dataset.detailUrl;
+            const csrfToken = document.querySelector('#sale-form [name=csrfmiddlewaretoken]').value;
+            const dialog = document.getElementById('sale-dialog');
+            const form = document.getElementById('sale-form');
+            const clientSelect = document.getElementById('sale-client');
+            const productSelect = document.getElementById('sale-product');
+            const totalInput = document.getElementById('sale-total');
+            const status = document.getElementById('sales-status');
+            const pagination = document.getElementById('sales-pagination');
+            const filter = document.getElementById('cliente');
+            let products = [];
+            let clients = [];
+            let editingSale = null;
+            let currentPage = Number(new URLSearchParams(location.search).get('page')) || 1;
+
+            const apiRequest = async (url, options = {}) => {
+                const response = await fetch(url, {
+                    ...options,
+                    credentials: 'same-origin',
+                    headers: {
+                        ...(options.body ? {'Content-Type': 'application/json'} : {}),
+                        'Accept': 'application/json',
+                        ...(options.method && options.method !== 'GET' ? {'X-CSRFToken': csrfToken} : {}),
+                        ...options.headers,
+                    },
+                });
+                if (response.redirected) {
+                    if (response.url.includes('/login')) {
+                        location.assign(response.url);
+                        throw new Error('Tu sesión expiró. Inicia sesión nuevamente.');
+                    }
+                    throw new Error(`La API redirigió la solicitud (HTTP ${response.status}).`);
+                }
+                const contentType = response.headers.get('content-type') || '';
+                const body = response.status === 204 ? '' : await response.text();
+                let data = null;
+                if (body && contentType.includes('application/json')) {
+                    try {
+                        data = JSON.parse(body);
+                    } catch {
+                        throw new Error(`La API devolvió JSON inválido (HTTP ${response.status}).`);
+                    }
+                } else if (body) {
+                    const message = response.status === 403
+                        ? 'La solicitud fue bloqueada (posible CSRF). Recarga el panel e inténtalo de nuevo.'
+                        : `La API devolvió HTML en vez de JSON (HTTP ${response.status}). Verifica la ruta y tu sesión.`;
+                    throw new Error(message);
+                }
+                if (!response.ok) throw new Error(data?.error || 'No se pudo completar la solicitud.');
+                return data;
+            };
+
+            const detailUrlFor = id => detailUrl.replace('/0/', `/${id}/`);
+            const cell = value => {
+                const element = document.createElement('td');
+                element.textContent = value || '—';
+                return element;
+            };
+            const productKeyForSale = sale => {
+                if (sale.vehiculo_id) return `vehiculo-${sale.vehiculo_id}`;
+                for (const kind of ['pintura', 'rueda', 'silla', 'luces']) {
+                    if (sale[`${kind}_id`]) return `${kind}-${sale[`${kind}_id`]}`;
+                }
+                return '';
+            };
+
+            const renderSales = sales => {
+                list.replaceChildren();
+                for (const sale of sales) {
+                    const row = document.createElement('tr');
+                    row.append(cell(sale.cliente), cell(sale.producto), cell(sale.detalle),
+                        cell(new Date(sale.fecha).toLocaleString()),
+                        cell(`$${Number(sale.total).toLocaleString('es-CL')}`));
+                    const actions = document.createElement('td');
+                    actions.className = 'text-end text-nowrap';
+                    const edit = document.createElement('button');
+                    edit.className = 'btn btn-sm btn-outline-primary me-1';
+                    edit.type = 'button';
+                    edit.textContent = 'Editar';
+                    edit.addEventListener('click', () => openForm(sale));
+                    const remove = document.createElement('button');
+                    remove.className = 'btn btn-sm btn-outline-danger';
+                    remove.type = 'button';
+                    remove.textContent = 'Eliminar';
+                    remove.addEventListener('click', () => deleteSale(sale));
+                    actions.append(edit, remove);
+                    row.append(actions);
+                    list.append(row);
+                }
+            };
+
+            const renderPagination = (page, pages) => {
+                pagination.replaceChildren();
+                if (pages <= 1) return;
+                const controls = document.createElement('div');
+                controls.className = 'd-flex justify-content-center align-items-center gap-3';
+                const button = (label, target, disabled) => {
+                    const element = document.createElement('button');
+                    element.type = 'button';
+                    element.className = 'btn btn-outline-primary btn-sm';
+                    element.textContent = label;
+                    element.disabled = disabled;
+                    element.addEventListener('click', () => {
+                        currentPage = target;
+                        const url = new URL(location.href);
+                        url.searchParams.set('page', target);
+                        history.pushState({}, '', url);
+                        loadSales();
+                    });
+                    return element;
+                };
+                controls.append(button('Anterior', page - 1, page <= 1));
+                const label = document.createElement('span');
+                label.textContent = `Página ${page} de ${pages}`;
+                controls.append(label, button('Siguiente', page + 1, page >= pages));
+                pagination.append(controls);
+            };
+
+            const loadSales = async () => {
+                status.textContent = 'Cargando ventas…';
+                try {
+                    const url = new URL(apiUrl, location.origin);
+                    url.searchParams.set('page', currentPage);
+                    if (filter.value) url.searchParams.set('cliente', filter.value);
+                    const data = await apiRequest(url);
+                    currentPage = data.page;
+                    document.getElementById('sales-count').textContent = `${data.count} registros en el sistema.`;
+                    document.getElementById('sales-total').textContent = `$${Number(data.total_ventas).toLocaleString('es-CL')}`;
+                    renderSales(data.results);
+                    renderPagination(data.page, data.pages);
+                    status.textContent = data.count ? '' : 'No hay ventas para este cliente.';
+                } catch (error) {
+                    status.textContent = error.message;
+                }
+            };
+
+            const openForm = sale => {
+                editingSale = sale;
+                form.reset();
+                document.getElementById('sale-dialog-title').textContent = sale ? `Editar venta #${sale.id}` : 'Nueva venta';
+                document.getElementById('sale-form-error').textContent = '';
+                clientSelect.replaceChildren();
+                for (const client of clients) {
+                    const option = document.createElement('option');
+                    option.value = client.id;
+                    option.textContent = client.nombre;
+                    clientSelect.append(option);
+                }
+                productSelect.replaceChildren();
+                for (const product of products) {
+                    const option = document.createElement('option');
+                    option.value = product.key;
+                    option.textContent = product.label;
+                    productSelect.append(option);
+                }
+                if (sale) {
+                    clientSelect.value = sale.cliente_id;
+                    productSelect.value = productKeyForSale(sale);
+                    totalInput.value = sale.total;
+                } else {
+                    totalInput.value = products[0]?.total || '';
+                }
+                dialog.showModal();
+            };
+
+            const deleteSale = async sale => {
+                if (!confirm(`¿Eliminar la venta #${sale.id}? También desaparecerá del historial del cliente.`)) return;
+                try {
+                    await apiRequest(detailUrlFor(sale.id), {method: 'DELETE'});
+                    status.textContent = `Venta #${sale.id} eliminada.`;
+                    await loadSales();
+                } catch (error) {
+                    status.textContent = error.message;
+                }
+            };
+
+            productSelect.addEventListener('change', () => {
+                const product = products.find(item => item.key === productSelect.value);
+                if (product) totalInput.value = product.total;
+            });
+            document.getElementById('create-sale').addEventListener('click', () => openForm(null));
+            document.getElementById('cancel-sale').addEventListener('click', () => dialog.close());
+            form.addEventListener('submit', async event => {
+                event.preventDefault();
+                const product = products.find(item => item.key === productSelect.value);
+                if (!product) return;
+                const payload = {
+                    cliente: Number(clientSelect.value),
+                    total: totalInput.value,
+                    ...(editingSale && product.key === productKeyForSale(editingSale) ? {} : product.data),
+                };
+                try {
+                    await apiRequest(editingSale ? detailUrlFor(editingSale.id) : apiUrl, {
+                        method: editingSale ? 'PATCH' : 'POST',
+                        body: JSON.stringify(payload),
+                    });
+                    dialog.close();
+                    currentPage = editingSale ? currentPage : 1;
+                    await loadSales();
+                    status.textContent = editingSale ? 'Venta actualizada.' : 'Venta creada.';
+                } catch (error) {
+                    document.getElementById('sale-form-error').textContent = error.message;
+                }
+            });
+            window.addEventListener('popstate', () => {
+                currentPage = Number(new URLSearchParams(location.search).get('page')) || 1;
+                loadSales();
+            });
+
+            apiRequest('{% url "api_ventas_opciones" %}')
+                .then(options => {
+                    clients = options.clientes;
+                    products = options.productos;
+                    const selectedClient = filter.value;
+                    filter.replaceChildren(new Option('Todos', ''));
+                    for (const client of clients) filter.add(new Option(client.nombre, client.id));
+                    filter.value = selectedClient;
+                    loadSales();
+                })
+                .catch(error => { status.textContent = error.message; });
+        })();
+    </script>
 {% endblock %}
