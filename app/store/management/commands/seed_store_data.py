@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from MicroMachinesStore.app.store.models import (
+from store.models import (
     Luces,
     Pedido,
     Pintura,
@@ -47,10 +47,10 @@ class Command(BaseCommand):
         )
 
         pinturas = [
-            Pintura.objects.get_or_create(color='Rojo', descripcion='Pintura roja brillante', valor=15000)[0],
-            Pintura.objects.get_or_create(color='Azul', descripcion='Pintura azul metálico', valor=17000)[0],
-            Pintura.objects.get_or_create(color='Negro', descripcion='Pintura negra mate', valor=18000)[0],
-            Pintura.objects.get_or_create(color='Blanco', descripcion='Pintura blanca perlada', valor=16000)[0],
+            Pintura.objects.update_or_create(color='Rojo', defaults={'descripcion': 'Pintura roja brillante', 'valor': 15000, 'activo': True})[0],
+            Pintura.objects.update_or_create(color='Azul', defaults={'descripcion': 'Pintura azul metálico', 'valor': 17000, 'activo': True})[0],
+            Pintura.objects.update_or_create(color='Negro', defaults={'descripcion': 'Pintura negra mate', 'valor': 18000, 'activo': True})[0],
+            Pintura.objects.update_or_create(color='Blanco', defaults={'descripcion': 'Pintura blanca perlada', 'valor': 16000, 'activo': True})[0],
         ]
 
         ruedas = [
@@ -137,19 +137,21 @@ class Command(BaseCommand):
             user.save()
 
         vehicles = [
-            ('Ferrari F40', 'Ferrari', 240000, pinturas[0], ruedas[0], sillas[0], luces[0]),
-            ('Porsche 911', 'Porsche', 260000, pinturas[1], ruedas[1], sillas[1], luces[1]),
-            ('Jeep Wrangler', 'Jeep', 210000, pinturas[2], ruedas[0], sillas[0], luces[2]),
-            ('Lamborghini Countach', 'Lamborghini', 280000, pinturas[0], ruedas[1], sillas[1], luces[1]),
-            ('Ford Mustang', 'Ford', 230000, pinturas[3], ruedas[2], sillas[0], luces[0]),
-            ('Mini Cooper', 'Mini', 180000, pinturas[1], ruedas[2], sillas[1], luces[2]),
+            ('R8', 'Audi', 24000, pinturas[0], ruedas[0], sillas[0], luces[0]),
+            ('Serie 3 F30', 'BMW', 26000, pinturas[1], ruedas[1], sillas[1], luces[1]),
+            ('Serie 5 (E34)', 'BMW', 21000, pinturas[2], ruedas[0], sillas[0], luces[2]),
+            ('C 10', 'Chevrolet', 23000, pinturas[1], ruedas[1], sillas[1], luces[1]),
+            ('308 GTB', 'Ferrari', 28000, pinturas[0], ruedas[1], sillas[1], luces[0]),
+            ('Torino', 'Ford', 23000, pinturas[3], ruedas[2], sillas[0], luces[0]),
+            ('S13', 'Nissan', 18000, pinturas[2], ruedas[2], sillas[1], luces[2]),
         ]
 
+        vehicle_ids = []
         for modelo, marca, valor_base, pintura, rueda, silla, luces_obj in vehicles:
-            Vehiculo.objects.update_or_create(
+            vehicle, _ = Vehiculo.objects.update_or_create(
                 modelo=modelo,
-                marca=marca,
                 defaults={
+                    'marca': marca,
                     'valor_base': valor_base,
                     'pintura': pintura,
                     'rueda': rueda,
@@ -158,6 +160,8 @@ class Command(BaseCommand):
                     'activo': True,
                 },
             )
+            vehicle_ids.append(vehicle.id)
+        Vehiculo.objects.exclude(id__in=vehicle_ids).update(activo=False)
 
         clients = list(UsuarioCliente.objects.all()[:3])
         available_vehicles = list(Vehiculo.objects.filter(activo=True)[:2])
@@ -173,5 +177,5 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS('Roles creados: admin y empleado.'))
         self.stdout.write(self.style.SUCCESS(f'Usuario admin: {admin_user.username} / Admin123'))
-        self.stdout.write(self.style.SUCCESS('Datos cargados correctamente: 5 empleados, 5 clientes, 6 vehículos, 3 ruedas, 3 luces y 2 sillas.'))
+        self.stdout.write(self.style.SUCCESS('Datos cargados correctamente: 5 empleados, 5 clientes, 7 vehículos, 3 ruedas, 3 luces y 2 sillas.'))
         self.stdout.write(self.style.SUCCESS(f'Pedidos creados: {Pedido.objects.filter(cliente__in=clients).count()}'))

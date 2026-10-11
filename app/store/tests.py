@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.contrib.staticfiles import finders
 from django.test import TestCase
 from django.urls import reverse
 from unittest.mock import patch
@@ -143,6 +144,32 @@ class StoreApiTests(TestCase):
         self.assertEqual(response['Access-Control-Allow-Origin'], '*')
         self.assertEqual(response.json()['results'][0]['marca'], 'Ferrari')
         self.assertEqual(response.json()['results'][0]['precio_base'], '240000')
+
+    def test_vehicle_photos_appear_in_home_catalog_and_detail(self):
+        blue = Pintura.objects.create(color='Azul', descripcion='Pintura azul', valor=17000)
+        black = Pintura.objects.create(color='Negro', descripcion='Pintura negra', valor=18000)
+        white = Pintura.objects.create(color='Blanco', descripcion='Pintura blanca', valor=16000)
+        vehicle = Vehiculo.objects.create(
+            modelo='R8', marca='Audi', valor_base=250000, pintura=self.paint,
+            rueda=self.wheel, silla=self.seat, luces=self.light,
+        )
+        image_path = 'images/Audi R8 r-1.png'
+
+        catalog = self.client.get(reverse('vehiculos'))
+        detail = self.client.get(reverse('vehiculo_detalle', args=[vehicle.id]))
+        home = self.client.get(reverse('home'))
+
+        self.assertIsNotNone(finders.find(image_path))
+        self.assertContains(catalog, image_path)
+        self.assertContains(detail, image_path)
+        self.assertContains(detail, 'Audi R8 rojo vista 1')
+        self.assertContains(detail, f'value="{self.paint.id}"')
+        self.assertContains(detail, f'value="{blue.id}"')
+        self.assertContains(detail, f'value="{black.id}"')
+        self.assertContains(detail, f'value="{white.id}"')
+        self.assertContains(detail, 'type="radio" name="pintura"', html=False)
+        self.assertContains(home, image_path)
+        self.assertEqual(detail.content.count(b'<img '), 13)
 
     def test_accessory_api_returns_active_catalog(self):
         inactive = Pintura.objects.create(color='Verde', descripcion='No disponible', valor=5000, activo=False)
