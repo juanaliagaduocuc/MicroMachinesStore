@@ -1,6 +1,7 @@
 from decimal import Decimal, InvalidOperation
 import json
 import random
+from pathlib import Path
 from urllib.parse import urlsplit
 from urllib.request import urlopen
 
@@ -16,6 +17,9 @@ from django.views.decorators.http import require_GET, require_http_methods
 
 from .forms import LoginForm, RegisterForm
 from .models import Luces, Pedido, Pintura, Rueda, Silla, UsuarioCliente, UsuarioEmpleado, Vehiculo
+
+VEHICLE_PAINT_CODES = {'azul': 'a', 'blanco': 'b', 'negro': 'n', 'rojo': 'r'}
+VEHICLE_PAINT_HEX = {'Azul': '#2563eb', 'Blanco': '#f8fafc', 'Negro': '#111827', 'Rojo': '#dc2626'}
 
 
 def get_user_role(user):
@@ -37,23 +41,66 @@ def home(request):
         'role': role,
         'user_name': user_name,
         'is_authenticated': request.user.is_authenticated,
+        'featured_vehicles': [
+            vehicle_catalog_item(vehicle)
+            for vehicle in Vehiculo.objects.filter(activo=True).select_related(
+                'pintura', 'rueda', 'silla', 'luces'
+            ).order_by('id')[:2]
+        ],
     }
     return render(request, 'store/home.html', context)
+
+
+def vehicle_images(vehicle):
+    image_directory = Path(__file__).resolve().parent / 'images'
+    model_name = vehicle_model_name(vehicle)
+    prefix = f'{vehicle.marca} {model_name} '
+    preferred_color = VEHICLE_PAINT_CODES.get(vehicle.pintura.color.casefold())
+    files = sorted(
+        image for image in image_directory.iterdir()
+        if image.is_file() and image.name.startswith(prefix) and image.suffix.lower() == '.png'
+    )
+    if preferred_color:
+        files.sort(key=lambda image: (
+            image.stem[len(prefix):].split('-', 1)[0] != preferred_color,
+            image.name,
+        ))
+    color_names = {'a': 'azul', 'b': 'blanco', 'n': 'negro', 'r': 'rojo'}
+    return [{
+        'path': f'images/{image.name}',
+        'color_code': image.stem[len(prefix):].split('-', 1)[0],
+        'alt': (
+            f'{vehicle.marca} {model_name} '
+            f'{color_names.get(image.stem[len(prefix):].split("-", 1)[0], "miniatura")} '
+            f'vista {image.stem.rsplit("-", 1)[-1]}'
+        ),
+    } for image in files]
+
+
+def vehicle_model_name(vehicle):
+    return vehicle.modelo.removeprefix(f'{vehicle.marca} ')
+
+
+def vehicle_catalog_item(vehicle):
+    images = vehicle_images(vehicle)
+    return {
+        'id': vehicle.id,
+        'name': f'{vehicle.marca} {vehicle_model_name(vehicle)}',
+        'price': f'${vehicle.valor_base:,.0f}',
+        'description': (
+            f'Pintura: {vehicle.pintura.color} · '
+            f'Rueda: {vehicle.rueda.descripcion if vehicle.rueda else "N/A"} · '
+            f'Silla: {vehicle.silla.descripcion} · Luces: {vehicle.luces.color}'
+        ),
+        'image': images[0] if images else None,
+    }
 
 
 def store(request):
     vehicles_list = Vehiculo.objects.filter(activo=True).select_related('pintura', 'rueda', 'silla', 'luces')[:6]
     return render(request, 'store/vehicles.html', {
         'title': 'Tienda',
-        'items': [
-            {
-                'id': item.id,
-                'name': f'{item.marca} {item.modelo}',
-                'price': f'${item.valor_base:,.0f}',
-                'description': f'Pintura: {item.pintura.color} · Rueda: {item.rueda.descripcion if item.rueda else "N/A"} · Silla: {item.silla.descripcion} · Luces: {item.luces.color}',
-            }
-            for item in vehicles_list
-        ]
+        'items': [vehicle_catalog_item(vehicle) for vehicle in vehicles_list],
     })
 
 
@@ -61,15 +108,7 @@ def vehicles(request):
     vehicles_list = Vehiculo.objects.filter(activo=True).select_related('pintura', 'rueda', 'silla', 'luces')
     context = {
         'title': 'Catálogo de vehículos',
-        'items': [
-            {
-                'id': item.id,
-                'name': f'{item.marca} {item.modelo}',
-                'price': f'${item.valor_base:,.0f}',
-                'description': f'Pintura: {item.pintura.color} · Rueda: {item.rueda.descripcion if item.rueda else "N/A"} · Silla: {item.silla.descripcion} · Luces: {item.luces.color}',
-            }
-            for item in vehicles_list
-        ],
+        'items': [vehicle_catalog_item(vehicle) for vehicle in vehicles_list],
     }
     return render(request, 'store/vehicles.html', context)
 
@@ -80,7 +119,7 @@ def api_vehicles(request):
     results = [{
         'id': item.id,
         'marca': item.marca,
-        'modelo': item.modelo,
+        'modelo': vehicle_model_name(item),
         'precio_base': str(item.valor_base),
         'pintura': item.pintura.color,
         'rueda': item.rueda.descripcion if item.rueda else None,
@@ -405,10 +444,20 @@ def accessories(request):
 def vehicle_detail(request, vehicle_id):
     vehicle = get_object_or_404(Vehiculo, id=vehicle_id, activo=True)
     estimated_total = vehicle.valor_base + vehicle.pintura.valor + vehicle.silla.valor + vehicle.luces.valor + (vehicle.rueda.valor if vehicle.rueda else 0)
+    images = vehicle_images(vehicle)
+    image_colors = {image['color_code'] for image in images}
+    paint_options = list(Pintura.objects.filter(activo=True))
+    for item in paint_options:
+        item.image_code = VEHICLE_PAINT_CODES.get(item.color.casefold())
+        item.color_hex = VEHICLE_PAINT_HEX.get(item.color.title(), '#7c3aed')
+    paint_options = [item for item in paint_options if item.image_code in image_colors]
     context = {
         'vehicle': vehicle,
+        'model_name': vehicle_model_name(vehicle),
+        'images': images,
+        'selected_paint_code': VEHICLE_PAINT_CODES.get(vehicle.pintura.color.casefold()),
         'base_total': vehicle.valor_base,
-        'paint_options': Pintura.objects.filter(activo=True),
+        'paint_options': paint_options,
         'wheel_options': Rueda.objects.filter(activo=True),
         'seat_options': Silla.objects.filter(activo=True),
         'light_options': Luces.objects.filter(activo=True),

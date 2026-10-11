@@ -1,4 +1,5 @@
 {% extends 'store/base.html' %}
+{% load static %}
 
 {% block title %}{{ title }} | MiniMachines Store{% endblock %}
 
@@ -7,9 +8,13 @@
         <h2 class="section-title">{{ title }}</h2>
         <div class="row g-4">
             {% for item in items %}
-                <div class="col-md-4">
+                <div class="col-sm-6 col-lg-4">
                     <div class="showcase-card h-100">
-                        <div class="thumb">🚗</div>
+                        {% if item.image %}
+                            <div class="thumb"><img class="vehicle-image" src="{% static item.image.path %}" alt="{{ item.image.alt }}" loading="lazy"></div>
+                        {% else %}
+                            <div class="thumb" aria-hidden="true">🚗</div>
+                        {% endif %}
                         <div class="card-body">
                             <span class="badge text-bg-warning badge-pill mb-2">Nuevo</span>
                             <h3 class="h5 fw-bold">{{ item.name }}</h3>

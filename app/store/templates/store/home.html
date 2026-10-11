@@ -1,4 +1,5 @@
 {% extends 'store/base.html' %}
+{% load static %}
 
 {% block title %}Inicio | MiniMachines Store{% endblock %}
 
@@ -28,27 +29,22 @@
     <section class="mb-5">
         <h2 class="section-title">Lo más destacado</h2>
         <div class="row g-4">
-            <div class="col-md-4">
-                <div class="showcase-card h-100">
-                    <div class="thumb">F</div>
-                    <div class="card-body">
-                        <h3 class="h5 fw-bold">Mini Ferrari</h3>
-                        <p class="text-muted">Alta velocidad y detalle premium para tus colecciones.</p>
-                        <div class="product-price">$240.000</div>
+            {% for item in featured_vehicles %}
+                <div class="col-sm-6 col-lg-4">
+                    <div class="showcase-card h-100">
+                        {% if item.image %}
+                            <div class="thumb"><img class="vehicle-image" src="{% static item.image.path %}" alt="{{ item.image.alt }}" loading="lazy"></div>
+                        {% endif %}
+                        <div class="card-body">
+                            <h3 class="h5 fw-bold">{{ item.name }}</h3>
+                            <p class="text-muted">{{ item.description }}</p>
+                            <div class="product-price">{{ item.price }}</div>
+                            <a class="btn btn-primary mt-3 w-100" href="{% url 'vehiculo_detalle' item.id %}">Ver detalles</a>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="col-md-4">
-                <div class="showcase-card h-100">
-                    <div class="thumb">J</div>
-                    <div class="card-body">
-                        <h3 class="h5 fw-bold">Camión Off-Road</h3>
-                        <p class="text-muted">Diseño robusto pensado para aventuras y exhibiciones.</p>
-                        <div class="product-price">$190.000</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
+            {% endfor %}
+            <div class="col-sm-6 col-lg-4">
                 <div class="showcase-card h-100">
                     <div class="thumb">K</div>
                     <div class="card-body">
@@ -64,21 +60,21 @@
     <section class="mb-5">
         <h2 class="section-title">¿Por qué elegirnos?</h2>
         <div class="row g-4">
-            <div class="col-md-4">
+            <div class="col-sm-6 col-lg-4">
                 <div class="feature-card h-100">
                     <div class="feature-icon">✓</div>
                     <h3 class="h5 fw-bold">Calidad premium</h3>
                     <p class="text-muted mb-0">Materiales y acabados diseñados para coleccionistas exigentes.</p>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-sm-6 col-lg-4">
                 <div class="feature-card h-100">
                     <div class="feature-icon">⚡</div>
                     <h3 class="h5 fw-bold">Envíos rápidos</h3>
                     <p class="text-muted mb-0">Entrega segura y ágil para que recibas tu pedido sin espera.</p>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-sm-6 col-lg-4">
                 <div class="feature-card h-100">
                     <div class="feature-icon">★</div>
                     <h3 class="h5 fw-bold">Colección única</h3>
