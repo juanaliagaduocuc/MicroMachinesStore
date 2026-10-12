@@ -5,4 +5,5 @@ def user_role(request):
     return {
         'role': get_user_role(request.user),
         'user_name': request.user.first_name or request.user.username if request.user.is_authenticated else 'visitante',
+        'saved_plate_name': request.session.get('saved_plate_name'),
     }

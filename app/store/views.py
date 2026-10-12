@@ -192,8 +192,9 @@ def serialize_sale(pedido):
         'rueda_id': pedido.rueda_id,
         'silla_id': pedido.silla_id,
         'luces_id': pedido.luces_id,
+        'patente': pedido.patente,
         'producto': producto,
-        'detalle': ' · '.join(detalles),
+        'detalle': ' · '.join([*detalles, *([f'Patente: {pedido.patente}'] if pedido.vehiculo else [])]),
         'total': str(pedido.total),
     }
 
@@ -206,7 +207,7 @@ def read_sale_data(request, pedido=None):
     if not isinstance(data, dict):
         raise ValueError('El cuerpo debe ser un objeto JSON.')
 
-    fields = {'cliente', 'vehiculo', 'pintura', 'rueda', 'silla', 'luces', 'total'}
+    fields = {'cliente', 'vehiculo', 'pintura', 'rueda', 'silla', 'luces', 'total', 'patente'}
     if data.keys() - fields:
         raise ValueError('La solicitud contiene campos no permitidos.')
 
@@ -218,6 +219,7 @@ def read_sale_data(request, pedido=None):
         'silla': pedido.silla_id if pedido else None,
         'luces': pedido.luces_id if pedido else None,
         'total': pedido.total if pedido else None,
+        'patente': pedido.patente if pedido else 'patente',
     }
     values.update(data)
 
@@ -258,7 +260,18 @@ def read_sale_data(request, pedido=None):
     if not total.is_finite() or total < 0 or total >= Decimal('1000000000000') or total != total.to_integral_value():
         raise ValueError('El total debe ser un entero entre 0 y 999999999999.')
     values['total'] = total
-    return {f'{field}_id' if field != 'total' else field: getattr(value, 'pk', value)
+    patente = values['patente']
+    if not isinstance(patente, str):
+        raise ValueError('La patente debe ser texto.')
+    patente = ' '.join(patente.strip().split())
+    patente = 'patente' if not patente or patente.casefold() == 'patente' else patente.upper()
+    if len(patente) > 20 or not all(
+        character.isascii() and (character.isalnum() or character in ' -')
+        for character in patente
+    ):
+        raise ValueError('La patente solo puede tener hasta 20 letras, números, espacios o guiones.')
+    values['patente'] = patente
+    return {f'{field}_id' if field in models else field: getattr(value, 'pk', value)
             for field, value in values.items()}
 
 
@@ -418,6 +431,28 @@ def api_random_plate_name(request):
     return JsonResponse({'name': ' '.join(random.sample(nouns, 2))})
 
 
+@require_http_methods(['POST'])
+def api_save_plate_name(request):
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({'error': 'El cuerpo debe ser JSON válido.'}, status=400)
+    if not isinstance(data, dict) or not isinstance(data.get('name'), str):
+        return JsonResponse({'error': 'Ingresa una patente válida.'}, status=400)
+
+    name = ' '.join(data['name'].strip().split()).upper()
+    if not name or len(name) > 20 or not all(
+        character.isascii() and (character.isalnum() or character in ' -')
+        for character in name
+    ):
+        return JsonResponse({
+            'error': 'Usa entre 1 y 20 letras, números, espacios o guiones.'
+        }, status=400)
+
+    request.session['saved_plate_name'] = name
+    return JsonResponse({'name': name})
+
+
 def accessories(request):
     accessory_list = []
     pinturas = Pintura.objects.filter(activo=True)
@@ -522,6 +557,7 @@ def purchase_vehicle(request, vehicle_id):
         silla=seat,
         luces=light,
         total=total,
+        patente=request.session.get('saved_plate_name') or 'patente',
     )
 
     messages.success(request, f'Compra confirmada. Total: ${total:,.0f}')

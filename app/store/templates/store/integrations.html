@@ -32,12 +32,24 @@
         <section class="col-md-6" aria-labelledby="plate-title">
             <div class="feature-card h-100">
                 <h2 class="h4 fw-bold" id="plate-title">Patente con nombre aleatorio 🚘</h2>
-                <p class="text-muted">Pulsa para inventar una patente personalizada con dos sustantivos aleatorios.</p>
+                <p class="text-muted">Genera un nombre aleatorio o escribe tu propia patente.</p>
                 <div class="mx-auto my-4 d-flex align-items-center justify-content-center gap-2 border border-3 border-dark rounded bg-light px-3 py-2 shadow-sm" style="max-width: 360px; min-height: 88px;">
                     <span class="badge text-bg-primary">CL</span>
-                    <output class="fw-bold text-uppercase text-nowrap" id="plate-name" aria-live="polite" style="font-size: clamp(1.4rem, 5vw, 2.6rem); letter-spacing: .06em;">???</output>
+                    <output class="fw-bold text-uppercase text-nowrap" id="plate-name" aria-live="polite" style="font-size: clamp(1.4rem, 5vw, 2.6rem); letter-spacing: .06em;">{{ saved_plate_name|default:'???' }}</output>
                 </div>
-                <button class="btn btn-primary" id="generate-plate" type="button" data-api-url="{% url 'api_nombre_patente' %}">Generar patente</button>
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-primary" id="generate-plate" type="button" data-api-url="{% url 'api_nombre_patente' %}">Generar patente</button>
+                    <button class="btn btn-outline-primary" id="save-plate" type="button" data-api-url="{% url 'api_guardar_patente' %}">Guardar patente</button>
+                </div>
+                <form class="mt-3" id="custom-plate-form">
+                    {% csrf_token %}
+                    <label class="form-label" for="custom-plate">O escribe tu propia patente</label>
+                    <div class="input-group">
+                        <input class="form-control" id="custom-plate" name="name" type="text" maxlength="20" pattern="[A-Za-z0-9 -]+" autocomplete="off" required>
+                        <button class="btn btn-outline-primary" type="submit">Usar mi patente</button>
+                    </div>
+                    <div class="form-text">Hasta 20 caracteres: letras, números, espacios o guiones.</div>
+                </form>
                 <p class="small text-muted mt-3 mb-0" id="plate-status" role="status" aria-live="polite"></p>
                 <a class="d-inline-block mt-3" href="https://www.datamuse.com/api/" target="_blank" rel="noopener noreferrer">Fuente: Datamuse API</a>
             </div>
@@ -59,6 +71,46 @@
                 status.textContent = '';
             } catch (error) {
                 status.textContent = error.message || 'No se pudo conectar con la API.';
+            } finally {
+                button.disabled = false;
+            }
+        });
+
+        document.getElementById('custom-plate-form').addEventListener('submit', event => {
+            event.preventDefault();
+            const input = document.getElementById('custom-plate');
+            document.getElementById('plate-name').textContent = input.value.trim().replace(/\s+/g, ' ').toUpperCase();
+            document.getElementById('plate-status').textContent = 'Patente lista. Pulsa “Guardar patente” para conservarla.';
+        });
+
+        document.getElementById('save-plate').addEventListener('click', async event => {
+            const button = event.currentTarget;
+            const status = document.getElementById('plate-status');
+            const name = document.getElementById('plate-name').textContent.trim();
+            if (name === '???') {
+                status.textContent = 'Genera o escribe una patente antes de guardarla.';
+                return;
+            }
+
+            button.disabled = true;
+            try {
+                const response = await fetch(button.dataset.apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    },
+                    body: JSON.stringify({name}),
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'No se pudo guardar la patente.');
+                document.getElementById('plate-name').textContent = data.name;
+                document.getElementById('saved-plate-global').textContent = data.name;
+                document.getElementById('saved-plate-banner').hidden = false;
+                status.textContent = 'Patente guardada para esta sesión.';
+            } catch (error) {
+                status.textContent = error.message || 'No se pudo guardar la patente.';
             } finally {
                 button.disabled = false;
             }

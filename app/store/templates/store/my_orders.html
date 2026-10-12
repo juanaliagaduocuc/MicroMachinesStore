@@ -22,6 +22,7 @@
                                     <div class="text-uppercase text-muted small mb-2">Pedido #{{ pedido.id }}</div>
                                     {% if pedido.vehiculo %}
                                         <h2 class="h4 fw-bold mb-2">{{ pedido.vehiculo.marca }} {{ pedido.vehiculo.modelo }}</h2>
+                                        <p class="mb-2"><strong>Patente:</strong> {{ pedido.patente }}</p>
                                         <p class="text-muted mb-2">
                                             Pintura: {{ pedido.pintura.color|default:pedido.vehiculo.pintura.color }} ·
                                             Rueda: {{ pedido.rueda.descripcion|default:pedido.vehiculo.rueda.descripcion|default:'Sin rueda' }} ·

@@ -12,6 +12,7 @@ urlpatterns = [
     path('api/ventas/opciones/', views.api_sales_options, name='api_ventas_opciones'),
     path('api/ventas/<int:sale_id>/', views.api_sale_detail, name='api_venta_detalle'),
     path('api/nombre-patente/', views.api_random_plate_name, name='api_nombre_patente'),
+    path('api/nombre-patente/guardar/', views.api_save_plate_name, name='api_guardar_patente'),
     path('integraciones/', views.integrations, name='integraciones'),
     path('vehiculos/<int:vehicle_id>/', views.vehicle_detail, name='vehiculo_detalle'),
     path('accesorios/', views.accessories, name='accesorios'),

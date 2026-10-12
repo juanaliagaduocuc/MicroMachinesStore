@@ -104,6 +104,7 @@ class Pedido(models.Model):
     luces = models.ForeignKey(Luces, on_delete=models.PROTECT, related_name='pedidos_luces', null=True, blank=True)
     fecha = models.DateTimeField(auto_now_add=True)
     total = models.DecimalField(max_digits=12, decimal_places=0)
+    patente = models.CharField(max_length=20, default='patente')
 
     def __str__(self):
         return f'Pedido #{self.id} - {self.cliente}'

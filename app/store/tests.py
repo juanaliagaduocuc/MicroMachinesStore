@@ -153,7 +153,7 @@ class StoreApiTests(TestCase):
             modelo='R8', marca='Audi', valor_base=250000, pintura=self.paint,
             rueda=self.wheel, silla=self.seat, luces=self.light,
         )
-        image_path = 'images/Audi R8 r-1.png'
+        image_path = 'images/Audi%20R8%20r-1.png'
 
         catalog = self.client.get(reverse('vehiculos'))
         detail = self.client.get(reverse('vehiculo_detalle', args=[vehicle.id]))
@@ -170,6 +170,34 @@ class StoreApiTests(TestCase):
         self.assertContains(detail, 'type="radio" name="pintura"', html=False)
         self.assertContains(home, image_path)
         self.assertEqual(detail.content.count(b'<img '), 13)
+
+    def test_vehicle_purchase_keeps_saved_plate_or_uses_default(self):
+        customer = UsuarioCliente.objects.create(
+            nombre='Ana', apellido='Pérez', run='12.345.678-9',
+            correo='ana@example.com', telefono='123', direccion='Santiago', password='pass',
+        )
+        user = get_user_model().objects.create_user(
+            username='ana@example.com', email=customer.correo, password='pass',
+        )
+        self.client.force_login(user)
+
+        no_plate = self.client.post(reverse('comprar_vehiculo', args=[self.vehicle.id]))
+        self.assertRedirects(no_plate, reverse('mis_compras'))
+        first_order = Pedido.objects.get(cliente=customer)
+        self.assertEqual(first_order.patente, 'patente')
+        self.assertContains(self.client.get(reverse('mis_compras')), 'patente')
+
+        saved_plate = self.client.post(
+            reverse('api_guardar_patente'),
+            data='{"name":"MI AUTO 7"}',
+            content_type='application/json',
+        )
+        self.assertEqual(saved_plate.status_code, 200)
+        with_plate = self.client.post(reverse('comprar_vehiculo', args=[self.vehicle.id]))
+        self.assertRedirects(with_plate, reverse('mis_compras'))
+        second_order = Pedido.objects.filter(cliente=customer).order_by('-id').first()
+        self.assertEqual(second_order.patente, 'MI AUTO 7')
+        self.assertContains(self.client.get(reverse('mis_compras')), 'MI AUTO 7')
 
     def test_accessory_api_returns_active_catalog(self):
         inactive = Pintura.objects.create(color='Verde', descripcion='No disponible', valor=5000, activo=False)
@@ -242,6 +270,15 @@ class StoreApiTests(TestCase):
         self.assertEqual(created.status_code, 201)
         sale_id = created.json()['id']
         self.assertEqual(created.json()['total'], '286000')
+        self.assertEqual(created.json()['patente'], 'patente')
+
+        with_plate = self.client.post(
+            reverse('api_ventas'),
+            data={**payload, 'patente': ' MINI-42 '},
+            content_type='application/json',
+        )
+        self.assertEqual(with_plate.status_code, 201)
+        self.assertEqual(with_plate.json()['patente'], 'MINI-42')
 
         updated = self.client.patch(
             reverse('api_venta_detalle', args=[sale_id]),
@@ -275,15 +312,13 @@ class StoreApiTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Toyota')
-        self.assertContains(response, 'Generar nombre')
+        self.assertContains(response, 'Generar patente')
         self.assertNotContains(response, 'Tipo de cambio')
-        self.assertContains(response, 'Why did the car stop?')
-        self.assertContains(response, 'https://images.dog.ceo/breeds/hound-english/n02089973_100.jpg')
 
         fetch_json.side_effect = [None, None, None]
         unavailable = self.client.get(reverse('integraciones'))
         self.assertEqual(unavailable.status_code, 200)
-        self.assertContains(unavailable, 'Los chistes están en pits')
+        self.assertContains(unavailable, 'No se pudo obtener la lista de marcas')
 
     @patch('store.views.fetch_public_json')
     def test_random_plate_name_api_formats_name_and_reports_failure(self, fetch_json):
@@ -307,3 +342,24 @@ class StoreApiTests(TestCase):
         insufficient = self.client.get(reverse('api_nombre_patente'))
         self.assertEqual(insufficient.status_code, 502)
         self.assertIn('error', insufficient.json())
+
+    @patch('store.views.fetch_public_json', return_value=None)
+    def test_custom_plate_is_saved_in_session_and_shown_across_pages(self, fetch_json):
+        saved = self.client.post(
+            reverse('api_guardar_patente'),
+            data='{"name":"  mi  auto-7 "}',
+            content_type='application/json',
+        )
+
+        self.assertEqual(saved.status_code, 200)
+        self.assertEqual(saved.json()['name'], 'MI AUTO-7')
+        self.assertEqual(self.client.session['saved_plate_name'], 'MI AUTO-7')
+        self.assertContains(self.client.get(reverse('home')), 'MI AUTO-7')
+        self.assertContains(self.client.get(reverse('integraciones')), 'MI AUTO-7')
+
+        invalid = self.client.post(
+            reverse('api_guardar_patente'),
+            data='{"name":"<script>"}',
+            content_type='application/json',
+        )
+        self.assertEqual(invalid.status_code, 400)

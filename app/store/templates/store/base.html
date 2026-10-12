@@ -347,6 +347,9 @@
     </nav>
 
     <main class="page-shell">
+        <div class="alert alert-warning py-2 mb-4" id="saved-plate-banner"{% if not saved_plate_name %} hidden{% endif %}>
+            Patente guardada: <strong id="saved-plate-global">{{ saved_plate_name }}</strong>
+        </div>
         {% if messages %}
             <div class="mb-4">
                 {% for message in messages %}
