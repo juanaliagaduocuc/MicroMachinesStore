@@ -10,8 +10,8 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
-from pathlib import Path
 import os
+from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -26,7 +26,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-local-development-onl
 
 DEBUG = os.environ.get('DEBUG', 'True').lower() in {'true', '1', 'yes'}
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'testserver']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'testserver'] if DEBUG else []
 ALLOWED_HOSTS += [
     host.strip()
     for host in os.environ.get('ALLOWED_HOSTS', '').split(',')

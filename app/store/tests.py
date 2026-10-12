@@ -153,22 +153,23 @@ class StoreApiTests(TestCase):
             modelo='R8', marca='Audi', valor_base=250000, pintura=self.paint,
             rueda=self.wheel, silla=self.seat, luces=self.light,
         )
-        image_path = 'images/Audi%20R8%20r-1.png'
+        image_path = 'images/Audi R8 r-1.png'
+        image_url = 'images/Audi%20R8%20r-1.png'
 
         catalog = self.client.get(reverse('vehiculos'))
         detail = self.client.get(reverse('vehiculo_detalle', args=[vehicle.id]))
         home = self.client.get(reverse('home'))
 
         self.assertIsNotNone(finders.find(image_path))
-        self.assertContains(catalog, image_path)
-        self.assertContains(detail, image_path)
+        self.assertContains(catalog, image_url)
+        self.assertContains(detail, image_url)
         self.assertContains(detail, 'Audi R8 rojo vista 1')
         self.assertContains(detail, f'value="{self.paint.id}"')
         self.assertContains(detail, f'value="{blue.id}"')
         self.assertContains(detail, f'value="{black.id}"')
         self.assertContains(detail, f'value="{white.id}"')
         self.assertContains(detail, 'type="radio" name="pintura"', html=False)
-        self.assertContains(home, image_path)
+        self.assertContains(home, image_url)
         self.assertEqual(detail.content.count(b'<img '), 13)
 
     def test_vehicle_purchase_keeps_saved_plate_or_uses_default(self):
